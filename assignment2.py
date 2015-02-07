@@ -13,4 +13,3 @@ print "2 - Internal computer setup"
 print "3 - Reset to default"
 option = raw_input("Option: ")
 os.system("./" + run_script(option))
-print "Finished"
