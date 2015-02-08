@@ -1,16 +1,16 @@
 #!/bin/sh
 
 #######################################
-#    USER DEFINED SECTION
+#    	USER DEFINED SECTION
 #######################################
 
 PUBLIC_INTERFACE="em1"
 PRIVATE_INTERFACE="p3p1"
 INTERNAL_IP="192.168.10.2"
 
-################
-#    MAIN
-################
+################################
+#    	IMPLEMENTATION
+################################
 
 clear
 iptables -F
