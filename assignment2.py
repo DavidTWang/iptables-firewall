@@ -2,7 +2,7 @@ import os, sys
 
 PUBLIC_INTERFACE = "em1"
 PRIVATE_INTERFACE = "p3p1"
-FIREWALL_IP = "192.168.0.16"
+FIREWALL_IP = "192.168.0.19"
 
 FIREWALL_INTERFACE_IP = "192.168.10.1"
 INTERNAL_IP = "192.168.10.2"
@@ -23,8 +23,8 @@ def setup_system(host_type):
 		os.system("route add -net %s gw %s" % (SUBNET_ADDR, FIREWALL_INTERFACE_IP))
 		# os.system("iptables -t nat -A POSTROUTING -s 192.168.10.0 -o %s -j SNAT --to-source %s" 
 		# 	% (PUBLIC_INTERFACE, FIREWALL_IP))
-		# os.system("iptables -t nat -A PREROUTING -i %s -j DNAT --to-destination %s"
-		# 	% (PUBLIC_INTERFACE, INTERNAL_IP))
+		os.system("iptables -t nat -A PREROUTING -i %s -j DNAT --to-destination %s"
+			% (PUBLIC_INTERFACE, INTERNAL_IP))
 		os.system("iptables -t nat -A POSTROUTING -o %s -j MASQUERADE"
 			% PUBLIC_INTERFACE)
 		print "Finished setting up firewall host"
