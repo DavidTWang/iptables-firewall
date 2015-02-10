@@ -28,10 +28,6 @@ def setup_system(host_type):
 		os.system("echo \"1\" > /proc/sys/net/ipv4/ip_forward")
 		os.system("route add -net 192.168.0.0 netmask 255.255.255.0 gw %s" % FIREWALL_IP)
 		os.system("route add -net %s gw %s" % (SUBNET_ADDR, FIREWALL_INTERFACE_IP))
-		# os.system("iptables -t nat -A POSTROUTING -s 192.168.10.0 -o %s -j SNAT --to-source %s" 
-		# 	% (PUBLIC_INTERFACE, FIREWALL_IP))
-		# os.system("iptables -t nat -A PREROUTING -i %s -j DNAT --to-destination %s"
-		# 	% (PUBLIC_INTERFACE, INTERNAL_IP))
 		os.system("iptables -t nat -A POSTROUTING -o %s -j MASQUERADE"
 			% PUBLIC_INTERFACE)
 		print "Finished setting up firewall host"
@@ -82,9 +78,6 @@ def execute_firewall():
 	# Drop all TCP packets with the SYN and FIN bit set
 	os.system("iptables -A FORWARD -p tcp --tcp-flags SYN,FIN SYN,FIN -j DROP")
 
-	# Reject Inbound SYN packets to high ports
-	os.system("iptables -A FORWARD -p tcp --tcp-flags SYN SYN -dports ")
-
 	for service in BLOCKED_TCP_PORTS:
 		block_service(service, "tcp")
 	for service in BLOCKED_UDP_PORTS:
@@ -112,7 +105,8 @@ def execute_firewall():
 	#	SECONDARY DROP
 	# ======================
 	# Drop incoming SYN packets from high ports
-	os.system("iptables -A FORWARD -p tcp --sport 1024:65535 -j DROP")
+	os.system("iptables -A FORWARD -i em1 -p tcp --dport 1024:65535 -j DROP")
+	os.system("iptables -A FORWARD -i em1 -p udp --dport 1024:65535 -j DROP")
 
 	print "Firewall activated"
 
