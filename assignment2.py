@@ -8,12 +8,12 @@ FIREWALL_INTERFACE_IP = "192.168.10.1"
 INTERNAL_IP = "192.168.10.2"
 SUBNET_ADDR = "192.168.10.0/24"
 
-ALLOWED_TCP_PORTS = [53, 80, 443]
-ALLOWED_UDP_PORTS = [53, 67, 68, 80, 443]
-ALLOWED_ICMP_SERVICES = [0, 8]
+ALLOWED_TCP_PORTS = ["20:22", "53", "80", "443", "8006"]
+ALLOWED_UDP_PORTS = ["20", "53", "67", "68", "80", "443", "8006"]
+ALLOWED_ICMP_SERVICES = ["0","3","8"]
 
-BLOCKED_TCP_PORTS = [23]
-BLOCKED_UDP_PORTS = [23]
+BLOCKED_TCP_PORTS = ["23", "32768:32775", "137:139", "111", "515"]
+BLOCKED_UDP_PORTS = ["23", "32768:32775", "137:139"]
 BLOCKED_ICMP_SERVICES = []
 
 def reset():
@@ -28,12 +28,12 @@ def setup_system(host_type):
 		os.system("echo \"1\" > /proc/sys/net/ipv4/ip_forward")
 		os.system("route add -net 192.168.0.0 netmask 255.255.255.0 gw %s" % FIREWALL_IP)
 		os.system("route add -net %s gw %s" % (SUBNET_ADDR, FIREWALL_INTERFACE_IP))
-		os.system("iptables -t nat -A POSTROUTING -s 192.168.10.0 -o %s -j SNAT --to-source %s" 
-			% (PUBLIC_INTERFACE, FIREWALL_IP))
-		os.system("iptables -t nat -A PREROUTING -i %s -j DNAT --to-destination %s"
-			% (PUBLIC_INTERFACE, INTERNAL_IP))
-		# os.system("iptables -t nat -A POSTROUTING -o %s -j MASQUERADE"
-		# 	% PUBLIC_INTERFACE)
+		# os.system("iptables -t nat -A POSTROUTING -s 192.168.10.0 -o %s -j SNAT --to-source %s" 
+		# 	% (PUBLIC_INTERFACE, FIREWALL_IP))
+		# os.system("iptables -t nat -A PREROUTING -i %s -j DNAT --to-destination %s"
+		# 	% (PUBLIC_INTERFACE, INTERNAL_IP))
+		os.system("iptables -t nat -A POSTROUTING -o %s -j MASQUERADE"
+			% PUBLIC_INTERFACE)
 		print "Finished setting up firewall host"
 
 	elif(host_type == "internal"):
@@ -46,14 +46,17 @@ def setup_system(host_type):
 def allow_service(service, protocol):
 
 	if(protocol == "tcp" or protocol == "udp"):
-		os.system("iptables -A FORWARD -p %s --sport %d -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT" % (protocol, service))
-		os.system("iptables -A FORWARD -p %s --dport %d -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT" % (protocol, service))
+		os.system("iptables -A FORWARD -p %s --sport %s -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT" % (protocol, service))
+		os.system("iptables -A FORWARD -p %s --dport %s -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT" % (protocol, service))
 	elif(protocol == "icmp"):
-		os.system("iptables -A FORWARD -p %s --icmp-type %d -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT" % (protocol, service))
+		os.system("iptables -A FORWARD -p %s --icmp-type %s -j ACCEPT" % (protocol, service))
 
 def block_service(service, protocol):
-	os.system("iptables -A FORWARD -p %s --sport %d -j DROP" % (protocol, service))
-	os.system("iptables -A FORWARD -p %s --dport %d -j DROP" % (protocol, service))
+	if(protocol == "tcp" or protocol == "udp"):
+		os.system("iptables -A FORWARD -p %s --sport %s -j DROP" % (protocol, service))
+		os.system("iptables -A FORWARD -p %s --dport %s -j DROP" % (protocol, service))
+	elif(protocol == "icmp"):
+		os.system("iptables -A FORWARD -p %s --icmp-type %s -j DROP" % (protocol, service))
 
 def execute_firewall():
 
@@ -64,34 +67,52 @@ def execute_firewall():
 	# Set all default policies to DROP
 	os.system("iptables -P INPUT DROP; iptables -P OUTPUT DROP; iptables -P FORWARD DROP")
 
-	# # Drop all packets destined for the firewall host from the outside
+	# Explicitly drop all packets toward the firewall
+	os.system("iptables -A INPUT -d %s -j DROP" % FIREWALL_IP)
+
+	# Drop all packets destined for the firewall host from the outside
 	# os.system("iptables -A INPUT -s ! %s -d %s -j DROP" % (SUBNET_ADDR, FIREWALL_IP))
 
 	# Drop all the packets with source ip matching the internal network
 	os.system("iptables -A FORWARD -i em1 -p tcp -s %s -j DROP" % SUBNET_ADDR)
 
 	# Block all external traffic directed to ports 32768 - 32775, 137 - 139, TCP prots 111 and 515
-	os.system("iptables -A FORWARD -p tcp -m multiport --dports 111,515,32768:32775 -j DROP")
+	os.system("iptables -A FORWARD -i em1 -p tcp -m multiport --dports 111,515,32768:32775 -j DROP")
 
 	# Drop all TCP packets with the SYN and FIN bit set
 	os.system("iptables -A FORWARD -p tcp --tcp-flags SYN,FIN SYN,FIN -j DROP")
 
+	# Reject Inbound SYN packets to high ports
+	os.system("iptables -A FORWARD -p tcp --tcp-flags SYN SYN -dports ")
+
+	for service in BLOCKED_TCP_PORTS:
+		block_service(service, "tcp")
+	for service in BLOCKED_UDP_PORTS:
+		block_service(service, "udp")
+	for service in BLOCKED_ICMP_SERVICES:
+		block_service(service, "icmp")
 
 	# =======================
 	# 	ACCEPT
 	# =======================
-
 	# For FTP and SSH services, set control connections to "Minimum Delay" and FTP data to "Maximum Throughput"
 	os.system("iptables -A PREROUTING -t mangle -p tcp --sport ssh -j TOS --set-tos Minimize-Delay")
 	os.system("iptables -A PREROUTING -t mangle -p tcp --sport ftp -j TOS --set-tos Minimize-Delay")
 	os.system("iptables -A PREROUTING -t mangle -p tcp --sport ftp-data -j TOS --set-tos Maximize-Throughput")
 
-	for x in ALLOWED_TCP_PORTS:
-		allow_service(x, "tcp")
-	for x in ALLOWED_UDP_PORTS:
-		allow_service(x, "udp")
-	for x in ALLOWED_ICMP_SERVICES:
-		allow_service(x, "icmp")
+	for service in ALLOWED_TCP_PORTS:
+		allow_service(service, "tcp")
+	for service in ALLOWED_UDP_PORTS:
+		allow_service(service, "udp")
+	for service in ALLOWED_ICMP_SERVICES:
+		allow_service(service, "icmp")
+
+
+	# ======================
+	#	SECONDARY DROP
+	# ======================
+	# Drop incoming SYN packets from high ports
+	os.system("iptables -A FORWARD -p tcp --sport 1024:65535 -j DROP")
 
 	print "Firewall activated"
 
