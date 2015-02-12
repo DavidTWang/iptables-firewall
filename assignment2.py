@@ -17,7 +17,7 @@ ALLOWED_ICMP_SERVICES = ["0","3","8"]
 
 BLOCKED_TCP_PORTS = ["23"]
 BLOCKED_UDP_PORTS = ["23"]
-BLOCKED_ICMP_SERVICES = []
+BLOCKED_ICMP_SERVICES = ["5"]
 
 def reset():
 	os.system("clear; iptables -F; iptables -X")
@@ -136,13 +136,13 @@ def run_external_test():
 		("Test 4: UDP Outgoing packet (Block)",
 			"hping3 %s -s 7006 --udp -c 5 -k" % INTERNAL_IP),
 		("Test 5: ICMP Outgoing packet (Accept)",
-			"hping3 %s --icmp -C 8" % INTERNAL_IP),
+			"hping3 %s --icmp -C 8 -c 5" % INTERNAL_IP),
 		("Test 6: ICMP Outgoing packet (Block)",
-			"hping3 %s --icmp -C 15" % INTERNAL_IP),
+			"hping3 %s --icmp -C 5 -c 5" % INTERNAL_IP),
 		("Test 7: Drop packets destined for the firewall host from outside",
 			"hping3 %s -S -c 5" % FIREWALL_IP),
 		("Test 8: Drop packets from outside matching your internal network",
-			"hping3 %s -S -p 80 -c 5 -a 192.168.10.5" % INTERNAL_IP),
+			"hping3 %s -S -p 80 -c 5 --spoof 192.168.10.5" % INTERNAL_IP),
 		("Test 9: Accept fragmented packets",
 			"hping3 %s -S -f -d 256 -c 5 -p 8006 -k" % INTERNAL_IP),
 		("Test 10: Drop SYN FIN packets",
