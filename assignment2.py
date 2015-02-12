@@ -140,7 +140,7 @@ def run_external_test():
 			"hping3 %s --icmp -C 15" % INTERNAL_IP),
 		("Test 7: Drop packets destined for the firewall host from outside",
 			"hping3 %s -S -c 5" % FIREWALL_IP),
-		("Test 8: Drop packets from outside matching your internal network"
+		("Test 8: Drop packets from outside matching your internal network",
 			"hping3 %s -S -p 80 -c 5 -a 192.168.10.5" % INTERNAL_IP),
 		("Test 9: Accept fragmented packets",
 			"hping3 %s -S -f -d 256 -c 5 -p 8006 -k" % INTERNAL_IP),
@@ -154,7 +154,6 @@ def run_external_test():
 			"hping3 %s -S -p 22 -c 5 -k" % INTERNAL_IP),
 		("Test 14: Set FTP-D services to 'Maximum-throughput'",
 			"hping3 %s -S -p 20 -c 5 -k" % INTERNAL_IP)
-
 	])
 	for title, command in tests.items():
 		log_test(title, command)
