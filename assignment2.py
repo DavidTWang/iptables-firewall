@@ -14,8 +14,8 @@ ALLOWED_TCP_PORTS = ["20:22", "53", "80", "443", "8006"]
 ALLOWED_UDP_PORTS = ["20", "53", "67", "68", "80", "443", "8006"]
 ALLOWED_ICMP_SERVICES = ["0","3","8"]
 
-BLOCKED_TCP_PORTS = ["23", "32768:32775", "137:139", "111", "515"]
-BLOCKED_UDP_PORTS = ["23", "32768:32775", "137:139"]
+BLOCKED_TCP_PORTS = ["23"]
+BLOCKED_UDP_PORTS = ["23"]
 BLOCKED_ICMP_SERVICES = []
 
 def reset():
@@ -70,13 +70,13 @@ def execute_firewall():
 	os.system("iptables -P INPUT DROP; iptables -P OUTPUT DROP; iptables -P FORWARD DROP")
 
 	# Explicitly drop all packets toward the firewall
-	os.system("iptables -A INPUT -d %s -j DROP" % FIREWALL_IP)
+	os.system("iptables -A -p tcp FORWARD -d %s -j DROP" % FIREWALL_IP)
 
 	# Drop all packets destined for the firewall host from the outside
 	# os.system("iptables -A INPUT -s ! %s -d %s -j DROP" % (SUBNET_ADDR, FIREWALL_IP))
 
 	# Drop all the packets with source ip matching the internal network
-	os.system("iptables -A FORWARD -i em1 -p tcp -s %s -j DROP" % SUBNET_ADDR)
+	os.system("iptables -A FORWARD -i em1 -s %s -j DROP" % SUBNET_ADDR)
 
 	# Block all external traffic directed to ports 32768 - 32775, 137 - 139, TCP prots 111 and 515
 	os.system("iptables -A FORWARD -i em1 -p tcp -m multiport --dports 111,515,32768:32775 -j DROP")
@@ -116,12 +116,12 @@ def execute_firewall():
 
 	print "Firewall activated"
 
-def log_test(title, command, log_file_name):
-	os.system("echo \"%s\" >> %s" % (title, log_file_name))
-	os.system("echo \"Command Used: %s\" >> %s" % command, log_file_name)
-	os.system("%s 2>temp_%s.2 1>temp_%s.1" % (command, log_file_name, log_file_name))
-	os.system("cat temp_%s.1 temp_%s.2 >> %s; rm -f temp_*" % (log_file_name, log_file_name, log_file_name))
-	os.system("echo ======================= >> %s" % log_file_name)
+def log_test(title, command):
+	os.system("echo \"%s\" >> test_results.log" % title)
+	os.system("echo \"Command Used: %s\" >> test_results.log" % command)
+	os.system("%s 2>temp.2 1>temp.1" % command)
+	os.system("cat temp.1 temp.2 >> test_results.log; rm -f temp.*")
+	os.system("echo ======================= >> test_results.log")
 	raw_input("Press enter to continue")
 
 def run_external_test():
@@ -133,12 +133,31 @@ def run_external_test():
 		("Test 3: UDP Outgoing packet (Accept)",
 			"hping3 %s -s 8006 --udp -c 5 -k" % INTERNAL_IP),
 		("Test 4: UDP Outgoing packet (Block)",
-			"hping3 %s -s 7006 --udp -c 5 -k" % INTERNAL_IP)
+			"hping3 %s -s 7006 --udp -c 5 -k" % INTERNAL_IP),
+		("Test 5: ICMP Outgoing packet (Accept)",
+			"hping3 %s --icmp -C 8" % INTERNAL_IP),
+		("Test 6: ICMP Outgoing packet (Block)",
+			"hping3 %s --icmp -C 15" % INTERNAL_IP),
+		("Test 7: Drop packets destined for the firewall host from outside",
+			"hping3 %s -S -c 5" % FIREWALL_IP),
+		("Test 8: Drop packets from outside matching your internal network"
+			"hping3 %s -S -p 80 -c 5 -a 192.168.10.5" % INTERNAL_IP),
+		("Test 9: Accept fragmented packets",
+			"hping3 %s -S -f -d 256 -c 5 -p 8006 -k" % INTERNAL_IP),
+		("Test 10: Drop SYN FIN packets",
+			"hping3 %s -S -F -p 80 -c 5 -k" % INTERNAL_IP),
+		("Test 11: Do not allow Telnet packets",
+			"hping3 %s -S -s 23 -c 5 -k" % INTERNAL_IP),
+		("Test 12: Block external traffic on ports 32768:32775",
+			"hping3 %s -S -p 32768 -c 7" % INTERNAL_IP),
+		("Test 13: Set SSH services to 'Minimum Delay'",
+			"hping3 %s -S -p 22 -c 5 -k" % INTERNAL_IP),
+		("Test 14: Set FTP-D services to 'Maximum-throughput'",
+			"hping3 %s -S -p 20 -c 5 -k" % INTERNAL_IP)
+
 	])
-	count = len(tests)
 	for title, command in tests.items():
-		log_test(title, command, "ext_Test%d" % count)
-		count = count - 1
+		log_test(title, command)
 
 	# print "Test 1: TCP Outgoing packet (Accept)"
 	# os.system("hping3 %s -S -s 8006 -c 5 >> ext_Test1.log" % INTERNAL_IP)
