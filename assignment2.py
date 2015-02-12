@@ -11,8 +11,8 @@ FIREWALL_INTERFACE_IP = "192.168.10.1"
 INTERNAL_IP = "192.168.10.2"
 SUBNET_ADDR = "192.168.10.0/24"
 
-ALLOWED_TCP_PORTS = ["20:22", "53", "80", "443", "8006"]
-ALLOWED_UDP_PORTS = ["20", "53", "67", "68", "80", "443", "8006"]
+ALLOWED_TCP_PORTS = ["20:22", "53", "8006"]
+ALLOWED_UDP_PORTS = ["20", "53", "67", "68", "8006"]
 ALLOWED_ICMP_SERVICES = ["0","3","8"]
 
 BLOCKED_TCP_PORTS = ["23"]
@@ -52,16 +52,23 @@ def allow_service(service, protocol):
 
 def block_service(service, protocol):
 	if(protocol == "tcp" or protocol == "udp"):
-		os.system("iptables -A FORWARD -p %s --sport %s -j DROP" % (protocol, service))
-		os.system("iptables -A FORWARD -p %s --dport %s -j DROP" % (protocol, service))
+		os.system("iptables -A FORWARD -p %s --sport %s -j LOG_DROP" % (protocol, service))
+		os.system("iptables -A FORWARD -p %s --dport %s -j LOG_DROP" % (protocol, service))
 	elif(protocol == "icmp"):
-		os.system("iptables -A FORWARD -p %s --icmp-type %s -j DROP" % (protocol, service))
+		os.system("iptables -A FORWARD -p %s --icmp-type %s -j LOG_DROP" % (protocol, service))
 
 def execute_firewall():
 
 	# =======================
 	# 	SETUP
 	# =======================
+	os.system("iptables -N LOG_DROP")
+	os.system("iptables -A LOG_DROP -j LOG --log-prefix \"[PACKET DROPPED] \" --log-level 4")
+	os.system("iptables -A LOG_DROP -j DROP")
+
+	# os.system("iptables -N LOG_ACCEPT")
+	# os.system("iptables -A LOG_ACCEPT -j LOG --log-prefix \"[PACKET ACCEPTED]\" --log-level 7")
+	# os.system("iptables -A LOG_ACCEPT -j ACCEPT")
 
 	# =======================
 	# 	DROP
@@ -71,19 +78,19 @@ def execute_firewall():
 	os.system("iptables -P INPUT DROP; iptables -P OUTPUT DROP; iptables -P FORWARD DROP")
 
 	# Explicitly drop all packets toward the firewall
-	os.system("iptables -A -p tcp FORWARD -d %s -j DROP" % FIREWALL_IP)
+	os.system("iptables -A FORWARD -p tcp -d %s -j LOG_DROP" % FIREWALL_IP)
 
 	# Drop all packets destined for the firewall host from the outside
 	# os.system("iptables -A INPUT -s ! %s -d %s -j DROP" % (SUBNET_ADDR, FIREWALL_IP))
 
 	# Drop all the packets with source ip matching the internal network
-	os.system("iptables -A FORWARD -i em1 -s %s -j DROP" % SUBNET_ADDR)
+	os.system("iptables -A FORWARD -i em1 -s %s -j LOG_DROP" % SUBNET_ADDR)
 
 	# Block all external traffic directed to ports 32768 - 32775, 137 - 139, TCP prots 111 and 515
-	os.system("iptables -A FORWARD -i em1 -p tcp -m multiport --dports 111,515,32768:32775 -j DROP")
+	os.system("iptables -A FORWARD -i em1 -p tcp -m multiport --dports 111,515,32768:32775 -j LOG_DROP")
 
 	# Drop all TCP packets with the SYN and FIN bit set
-	os.system("iptables -A FORWARD -p tcp --tcp-flags SYN,FIN SYN,FIN -j DROP")
+	os.system("iptables -A FORWARD -p tcp --tcp-flags SYN,FIN SYN,FIN -j LOG_DROP")
 
 	for service in BLOCKED_TCP_PORTS:
 		block_service(service, "tcp")
@@ -112,8 +119,8 @@ def execute_firewall():
 	#	SECONDARY DROP
 	# ======================
 	# Drop incoming SYN packets from high ports
-	os.system("iptables -A FORWARD -i em1 -p tcp --dport 1024:65535 -j DROP")
-	os.system("iptables -A FORWARD -i em1 -p udp --dport 1024:65535 -j DROP")
+	os.system("iptables -A FORWARD -i em1 -p tcp --dport 1024:65535 -j LOG_DROP")
+	os.system("iptables -A FORWARD -i em1 -p udp --dport 1024:65535 -j LOG_DROP")
 
 	print "Firewall activated"
 
