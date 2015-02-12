@@ -1,9 +1,11 @@
 import os, sys
+from subprocess import PIPE, Popen
 
 PUBLIC_INTERFACE = "em1"
 PRIVATE_INTERFACE = "p3p1"
-FIREWALL_IP = "192.168.0.19"
 
+EXTERNAL_IP = "192.168.0.21"
+FIREWALL_IP = "192.168.0.20"
 FIREWALL_INTERFACE_IP = "192.168.10.1"
 INTERNAL_IP = "192.168.10.2"
 SUBNET_ADDR = "192.168.10.0/24"
@@ -55,6 +57,10 @@ def block_service(service, protocol):
 		os.system("iptables -A FORWARD -p %s --icmp-type %s -j DROP" % (protocol, service))
 
 def execute_firewall():
+
+	# =======================
+	# 	SETUP
+	# =======================
 
 	# =======================
 	# 	DROP
@@ -110,6 +116,47 @@ def execute_firewall():
 
 	print "Firewall activated"
 
+def log_test(title, command, log_file_name):
+	os.system("echo \"%s\" >> %s" % (title, log_file_name))
+	os.system("echo \"Command Used: %s\" >> %s" % command, log_file_name)
+	os.system("%s 2>temp_%s.2 1>temp_%s.1" % (command, log_file_name, log_file_name))
+	os.system("cat temp_%s.1 temp_%s.2 >> %s; rm -f temp_*" % (log_file_name, log_file_name, log_file_name))
+	os.system("echo ======================= >> %s" % log_file_name)
+	raw_input("Press enter to continue")
+
+def run_external_test():
+	tests = dict([
+		("Test 1: TCP Outgoing packet (Accept)",
+			"hping3 %s -S -s 8006 -c 5 -k" % INTERNAL_IP),
+		("Test 2: TCP Outgoing packet (Block)",
+			"hping3 %s -S -s 7006 -c 5 -k" % INTERNAL_IP),
+		("Test 3: UDP Outgoing packet (Accept)",
+			"hping3 %s -s 8006 --udp -c 5 -k" % INTERNAL_IP),
+		("Test 4: UDP Outgoing packet (Block)",
+			"hping3 %s -s 7006 --udp -c 5 -k" % INTERNAL_IP)
+	])
+	count = len(tests)
+	for title, command in tests.items():
+		log_test(title, command, "ext_Test%d" % count)
+		count = count - 1
+
+	# print "Test 1: TCP Outgoing packet (Accept)"
+	# os.system("hping3 %s -S -s 8006 -c 5 >> ext_Test1.log" % INTERNAL_IP)
+	# raw_input("Press enter to continue")
+
+	# print "Test 2: TCP Outgoing packet (Block)"
+	# os.system("hping3 %s -S -s 7006 -c 5 >> ext_Test2.log" % INTERNAL_IP)
+	# raw_input("Press enter to continue")
+
+	# print "Test 3: UDP Outgoing packet"
+	# os.system("hping3 %s -S -s 8006 --udp -c 5 >> ext_Test3.log" % INTERNAL_IP)
+	# raw_input("Press enter to continue")
+
+
+	# print "Test 5: ICMP Outgoing packet"
+	# os.system("")
+
+
 def run_script(options):
 	for option in options:
 		if(option == '1'):
@@ -120,6 +167,10 @@ def run_script(options):
 			reset()
 		elif(option == '4'):
 			execute_firewall()
+		elif(option == '5'):
+			run_internal_test()
+		elif(option == '6'):
+			run_external_test()
 		elif(option == '0'):
 			print "Exiting..."
 			sys.exit()
@@ -133,6 +184,8 @@ def main():
 		print "2 - Internal computer setup"
 		print "3 - Reset to default"
 		print "4 - Execute firewall"
+		print "5 - Run tests (From Internal computer)"
+		print "6 - Run tests (From External computer)"
 		print "0 - Exit"
 		print "\nSeperate multiple commands with space"
 
