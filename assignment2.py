@@ -1,5 +1,6 @@
 import os, sys
 from subprocess import PIPE, Popen
+from collections import OrderedDict
 
 PUBLIC_INTERFACE = "em1"
 PRIVATE_INTERFACE = "p3p1"
@@ -121,11 +122,11 @@ def log_test(title, command):
 	os.system("echo \"Command Used: %s\" >> test_results.log" % command)
 	os.system("%s 2>temp.2 1>temp.1" % command)
 	os.system("cat temp.1 temp.2 >> test_results.log; rm -f temp.*")
-	os.system("echo ======================= >> test_results.log")
+	os.system("echo =============================================== >> test_results.log")
 	raw_input("Press enter to continue")
 
 def run_external_test():
-	tests = dict([
+	tests = OrderedDict([
 		("Test 1: TCP Outgoing packet (Accept)",
 			"hping3 %s -S -s 8006 -c 5 -k" % INTERNAL_IP),
 		("Test 2: TCP Outgoing packet (Block)",
