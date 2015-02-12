@@ -15,8 +15,8 @@ ALLOWED_TCP_PORTS = ["20:22", "53", "8006"]
 ALLOWED_UDP_PORTS = ["20", "53", "67", "68", "8006"]
 ALLOWED_ICMP_SERVICES = ["0","3","8"]
 
-BLOCKED_TCP_PORTS = ["23"]
-BLOCKED_UDP_PORTS = ["23"]
+BLOCKED_TCP_PORTS = ["23", "7006"]
+BLOCKED_UDP_PORTS = ["23", "7006"]
 BLOCKED_ICMP_SERVICES = ["5"]
 
 def reset():
@@ -45,10 +45,10 @@ def setup_system(host_type):
 def allow_service(service, protocol):
 
 	if(protocol == "tcp" or protocol == "udp"):
-		os.system("iptables -A FORWARD -p %s --sport %s -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT" % (protocol, service))
-		os.system("iptables -A FORWARD -p %s --dport %s -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT" % (protocol, service))
+		os.system("iptables -A FORWARD -p %s --sport %s -m conntrack --ctstate NEW,ESTABLISHED -j LOG_ACCEPT" % (protocol, service))
+		os.system("iptables -A FORWARD -p %s --dport %s -m conntrack --ctstate NEW,ESTABLISHED -j LOG_ACCEPT" % (protocol, service))
 	elif(protocol == "icmp"):
-		os.system("iptables -A FORWARD -p %s --icmp-type %s -j ACCEPT" % (protocol, service))
+		os.system("iptables -A FORWARD -p %s --icmp-type %s -j LOG_ACCEPT" % (protocol, service))
 
 def block_service(service, protocol):
 	if(protocol == "tcp" or protocol == "udp"):
@@ -66,9 +66,9 @@ def execute_firewall():
 	os.system("iptables -A LOG_DROP -j LOG --log-prefix \"[PACKET DROPPED] \" --log-level 4")
 	os.system("iptables -A LOG_DROP -j DROP")
 
-	# os.system("iptables -N LOG_ACCEPT")
-	# os.system("iptables -A LOG_ACCEPT -j LOG --log-prefix \"[PACKET ACCEPTED]\" --log-level 7")
-	# os.system("iptables -A LOG_ACCEPT -j ACCEPT")
+	os.system("iptables -N LOG_ACCEPT")
+	os.system("iptables -A LOG_ACCEPT -j LOG --log-prefix \"[PACKET ACCPTED] \" --log-level 4")
+	os.system("iptables -A LOG_ACCEPT -j ACCEPT")
 
 	# =======================
 	# 	DROP
