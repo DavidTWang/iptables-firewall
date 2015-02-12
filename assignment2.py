@@ -132,19 +132,49 @@ def log_test(title, command):
 	os.system("echo =============================================== >> test_results.log")
 	raw_input("Press enter to continue")
 
-def run_external_test():
+def run_internal_test():
 	tests = OrderedDict([
 		("Test 1: TCP Outgoing packet (Accept)",
-			"hping3 %s -S -s 8006 -c 5 -k" % INTERNAL_IP),
+			"hping3 %s -S -s 8006 -c 5 -k" % EXTERNAL_IP),
 		("Test 2: TCP Outgoing packet (Block)",
-			"hping3 %s -S -s 7006 -c 5 -k" % INTERNAL_IP),
+			"hping3 %s -S -s 7006 -c 5 -k" % EXTERNAL_IP),
 		("Test 3: UDP Outgoing packet (Accept)",
-			"hping3 %s -s 8006 --udp -c 5 -k" % INTERNAL_IP),
+			"hping3 %s -s 8006 --udp -c 5 -k" % EXTERNAL_IP),
 		("Test 4: UDP Outgoing packet (Block)",
-			"hping3 %s -s 7006 --udp -c 5 -k" % INTERNAL_IP),
+			"hping3 %s -s 7006 --udp -c 5 -k" % EXTERNAL_IP),
 		("Test 5: ICMP Outgoing packet (Accept)",
-			"hping3 %s --icmp -C 8 -c 5" % INTERNAL_IP),
+			"hping3 %s --icmp -C 8 -c 5" % EXTERNAL_IP),
 		("Test 6: ICMP Outgoing packet (Block)",
+			"hping3 %s --icmp -C 5 -c 5" % EXTERNAL_IP),
+		("Test 7: Accept fragmented packets",
+			"hping3 %s -S -f -d 256 -c 5 -s 8006 -k" % EXTERNAL_IP),
+		("Test 8: Drop SYN FIN packets",
+			"hping3 %s -S -F -s 80 -c 5 -k" % EXTERNAL_IP),
+		("Test 9: Do not allow Telnet packets",
+			"hping3 %s -S -s 23 -c 5 -k" % EXTERNAL_IP),
+		("Test 10: Block external traffic on ports 32768:32775",
+			"hping3 %s -S -s 32768 -c 7" % EXTERNAL_IP),
+		("Test 11: Set SSH services to 'Minimum Delay'",
+			"hping3 %s -S -s 22 -c 5 -k" % EXTERNAL_IP),
+		("Test 12: Set FTP-D services to 'Maximum-throughput'",
+			"hping3 %s -S -s 20 -c 5 -k" % EXTERNAL_IP)
+	])
+	for title, command in tests.items():
+		log_test(title, command)
+
+def run_external_test():
+	tests = OrderedDict([
+		("Test 1: TCP Incoming packet (Accept)",
+			"hping3 %s -S -p 8006 -c 5 -k" % INTERNAL_IP),
+		("Test 2: TCP Incoming packet (Block)",
+			"hping3 %s -S -p 7006 -c 5 -k" % INTERNAL_IP),
+		("Test 3: UDP Incoming packet (Accept)",
+			"hping3 %s -p 8006 --udp -c 5 -k" % INTERNAL_IP),
+		("Test 4: UDP Incoming packet (Block)",
+			"hping3 %s -p 7006 --udp -c 5 -k" % INTERNAL_IP),
+		("Test 5: ICMP Incoming packet (Accept)",
+			"hping3 %s --icmp -C 8 -c 5" % INTERNAL_IP),
+		("Test 6: ICMP Incoming packet (Block)",
 			"hping3 %s --icmp -C 5 -c 5" % INTERNAL_IP),
 		("Test 7: Drop packets destined for the firewall host from outside",
 			"hping3 %s -S -c 5" % FIREWALL_IP),
@@ -155,7 +185,7 @@ def run_external_test():
 		("Test 10: Drop SYN FIN packets",
 			"hping3 %s -S -F -p 80 -c 5 -k" % INTERNAL_IP),
 		("Test 11: Do not allow Telnet packets",
-			"hping3 %s -S -s 23 -c 5 -k" % INTERNAL_IP),
+			"hping3 %s -S -p 23 -c 5 -k" % INTERNAL_IP),
 		("Test 12: Block external traffic on ports 32768:32775",
 			"hping3 %s -S -p 32768 -c 7" % INTERNAL_IP),
 		("Test 13: Set SSH services to 'Minimum Delay'",
@@ -165,22 +195,6 @@ def run_external_test():
 	])
 	for title, command in tests.items():
 		log_test(title, command)
-
-	# print "Test 1: TCP Outgoing packet (Accept)"
-	# os.system("hping3 %s -S -s 8006 -c 5 >> ext_Test1.log" % INTERNAL_IP)
-	# raw_input("Press enter to continue")
-
-	# print "Test 2: TCP Outgoing packet (Block)"
-	# os.system("hping3 %s -S -s 7006 -c 5 >> ext_Test2.log" % INTERNAL_IP)
-	# raw_input("Press enter to continue")
-
-	# print "Test 3: UDP Outgoing packet"
-	# os.system("hping3 %s -S -s 8006 --udp -c 5 >> ext_Test3.log" % INTERNAL_IP)
-	# raw_input("Press enter to continue")
-
-
-	# print "Test 5: ICMP Outgoing packet"
-	# os.system("")
 
 
 def run_script(options):
